@@ -1,0 +1,66 @@
+
+    //delay(1000);
+    //send_code(1, 5);    // tab
+    //send_code(2, 6);    // whiteout
+    //send_code(0x04, 6); // backspace
+    //send_code(0x20, 6);   // whiteout word
+    send_code(0x40, 6);   // CR + LF
+    delay(3000);
+    //send_code(0x40, 7);     // shift_lock lock
+    //send_code(0x80, 7);
+    /*
+    send_code(0x80, 0);         // ,
+    send_code(0x80, 1);         // .
+    send_code(0x80, 2);         // 1/2
+    send_code(0x80, 3);         // ;
+    send_code(0x80, 4);         // ]
+    send_code(0x80, 5);         // '
+    
+    send_code(0x40, 0);         // /
+    send_code(0x40, 1);         // +-
+    send_code(0x40, 2);         // q
+    send_code(0x40, 3);         // z
+    send_code(0x40, 4);         // w
+    send_code(0x40, 5);         // a
+  
+    send_code(0x20, 0);         // 1
+    send_code(0x20, 1);         // 2
+    send_code(0x20, 2);         // e
+    send_code(0x20, 3);         // f
+    send_code(0x20, 4);         // r
+    send_code(0x20, 5);         // g
+    
+    send_code(0x10, 0);         // 3
+    send_code(0x10, 1);         // 4
+    send_code(0x10, 2);         // t
+    send_code(0x10, 3);         // h
+    send_code(0x10, 4);         // y
+    send_code(0x10, 5);         // j
+ 
+    send_code(0x08, 0);         // 7
+    send_code(0x08, 1);         // 8
+    send_code(0x08, 2);         // o
+    send_code(0x08, 3);         // s
+    send_code(0x08, 4);         // p
+    send_code(0x08, 5);         // d
+ 
+    send_code(0x04, 0);         // 5
+    send_code(0x04, 1);         // 6
+    send_code(0x04, 2);         // u
+    send_code(0x04, 3);         // k
+    send_code(0x04, 4);         // i
+    send_code(0x04, 5);         // l
+    
+    send_code(0x02, 0);         // -
+    send_code(0x02, 1);         // =
+    send_code(0x02, 2);         // n
+    send_code(0x02, 3);         // x
+    send_code(0x02, 4);         // m
+    
+    send_code(0x01, 0);         // 9
+    send_code(0x01, 1);         // 0
+    send_code(0x01, 2);         // v
+    send_code(0x01, 3);         // c
+    send_code(0x01, 4);         // b
+    */
+

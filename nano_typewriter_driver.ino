@@ -252,9 +252,12 @@ void loop() {
     // Use bit 7 from the input byte (port 12) to latch the ascii value code 
     if(triggered == 0 && (PINB & 0x10)) {
         triggered = 1;
-        uint8_t bytein = ((PIND & 0xE0) >> 4);
-        bytein |= ((PINC & 0x1F) << 3);
-        rb_write(bytein);
+        uint8_t bytein = ((PIND & 0xE0) >> 5);
+        sprint("D: %02X, B: %02X\n", PIND, PINB);
+        sprint("%02X -> ", bytein);
+        bytein |= ((PINB & 0x1F) << 3);
+        sprint("%02X\n", bytein);
+        rb_write((bytein & 0x7F));
     } 
     else if(triggered == 1 && !(PINB & 0x10)) {
         triggered = 0;

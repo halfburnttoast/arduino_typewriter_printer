@@ -24,10 +24,13 @@ void rb_write(const unsigned char value) {
 // read a byte from the buffer, increment the read offset pointer
 // if both pointers are equal, we've reached the end of the buffer items
 uint8_t rb_read(void) {
-    uint8_t temp;
-    temp = g_ring_buff.buffer[g_ring_buff.read_idx];
+    uint8_t temp = g_ring_buff.buffer[g_ring_buff.read_idx];
     g_ring_buff.read_idx++;
     if(g_ring_buff.read_idx == g_ring_buff.write_idx)
         g_ring_buff.empty = 1;
     return temp;
+}
+
+uint8_t rb_peek(void) {
+    return g_ring_buff.buffer[g_ring_buff.read_idx];
 }

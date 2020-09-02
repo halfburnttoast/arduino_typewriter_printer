@@ -1,28 +1,35 @@
 #define SERIAL_ENABLE
+#define PAR_PORT_ENABLE
 #include "keycodes.h"
 #include "ring_buffer.h"
-extern ring_buffer g_ring_buff;
+extern ring_buffer g_ring_buff;         // global ring buffer for printing
 
 #ifdef SERIAL_ENABLE
-// ==== Begin Serial com vars ====
 #define SERIAL_RATE 115200
 #define SERIAL_INPUT_BUFFER_SIZE 256
 #define SERIAL_OUTPUT_BUFFER_SIZE 64
 char serial_input_buffer[SERIAL_INPUT_BUFFER_SIZE];
 char serial_output_buffer[SERIAL_OUTPUT_BUFFER_SIZE];
-// ==== End Serial com vars ====
 #endif
+
+// Control pins
 #define DATA     2
 #define SR_OE    A5
 #define RCLK     3
 #define SRCLK    4
-#define PRINT_DELAY 5
-uint8_t g_print_delay = PRINT_DELAY;
-//uint8_t port_input_pins[8] = {
-//    5, 6, 7, 8, 9, 10, 11, 12
-//  0  1  2  3  4  5   6   7
-//};
 
+// Internal print-state variables
+#define PRINT_DELAY 5
+#define CHARS_PER_LINE  64              // maximum characters per line of paper
+uint8_t g_print_delay = PRINT_DELAY;
+uint8_t g_character_index = 0;          // used to track carriage position
+
+
+
+
+/*
+ * Functions ----------------------------------------------
+ */
 
 #ifdef SERIAL_ENABLE
 // printf wrapper for serial output
@@ -153,8 +160,10 @@ void print_c(const char cin) {
         case 0x07:
         case 0x09:
             g_print_delay = 0x50;       // long delay for large carriage movement
+            g_character_index = 0;
             break;
         default:
+            g_character_index++;
             g_print_delay = PRINT_DELAY;
     }
 }
@@ -166,7 +175,23 @@ void handle_buffer(void) {
         g_print_delay = PRINT_DELAY;
         return;
     }
-    print_c(rb_read());
+
+    // auto insert a newline if the carriage has reached the end of paper
+    // and next character isn't a newline. 
+    if(g_character_index < CHARS_PER_LINE) {
+        print_c(rb_read());
+    } else {
+        switch(rb_peek()) {         // if the next character is a newline, run it
+            case 0x0A:
+            case 0x0D:
+            case 0x07:
+            case 0x09:
+                print_c(rb_read()); // otherwise insert a newline 
+                break;
+            default:
+                print_c('\n');
+        }
+    }
 }
 
 void setup() {
@@ -174,10 +199,11 @@ void setup() {
     Serial.begin(SERIAL_RATE);
     //for(uint8_t i = 0; i < 40; i++)
     //    sprint("\n");
+    Serial.flush();
     sprint("Serial ready.\n\r");
 #endif
     pinMode(LED_BUILTIN, OUTPUT);
-    pinMode(12, INPUT_PULLUP);
+    pinMode(12, INPUT_PULLUP);  // latching pin to prevent stray character pressses
     
     // setup shift register output
     pinMode(DATA, OUTPUT);
@@ -204,6 +230,9 @@ void setup() {
     TIMSK1 |= (1 << TOIE1);
     TCCR1B |= 0x02;
     sei();
+
+    // reset carriage position
+    rb_write('\n');
 }
 
 /* Timer1 is running but needs to be tuned a bit, thus the delay. This delay
@@ -233,22 +262,9 @@ void loop() {
             rb_write(temp);
         }  
     }
-    /*
-    if(Serial.available()) {
-        uint8_t bytes_read = Serial.readBytesUntil('\r', serial_input_buffer, SERIAL_INPUT_BUFFER_SIZE - 1);
-        serial_input_buffer[bytes_read] = 0;
-        for(uint8_t i = 0; i <= 0xFF; i++) {
-            uint8_t temp = serial_input_buffer[i];
-            if(temp == 0) {
-                rb_write('\n');
-                break;
-            }
-            rb_write(temp);
-        }    
-    }
-    */
 #endif
 
+#ifdef PAR_PORT_ENABLE
     // Use bit 7 from the input byte (port 12) to latch the ascii value code 
     if(triggered == 0 && (PINB & 0x10)) {
         triggered = 1;
@@ -259,8 +275,8 @@ void loop() {
     else if(triggered == 1 && !(PINB & 0x10)) {
         triggered = 0;
     }
+#endif
 }
-
 
 
 /*   

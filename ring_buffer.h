@@ -13,5 +13,6 @@ typedef struct {
 void rb_reset(void);
 void rb_write(const unsigned char value);
 uint8_t rb_read(void);
+uint8_t rb_peek(void);
 
 #endif

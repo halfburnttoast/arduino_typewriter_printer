@@ -143,12 +143,28 @@ void send_code(const uint8_t code, const uint8_t addr) {
 }
 
 // CALL THIS function to print characters
-// if called, it will set the interrupt delay to compenstate for the 
-// carriage head movement depending on the character sent.
 void print_c(const char cin) {
     uint8_t c, a, s;
+    static uint8_t last_char;           // track last character printed for linefeed bug
     if(cin == 0)
         return;
+
+    /*
+     * Linefeed bug: On this typewriter, LF and CR do the same operation. Either will 
+     * do both a CR and LF. LF and CR are often, but not always, sent together. 
+     * This filters out one of those operations to prevent accidental linefeeds, 
+     * but still allows multiple linefeeds to be sent intentionally. A better fix would 
+     * be to map either the LF or CR character codes in keycodes.h to a null operation. 
+     * But, I don't know of any yet. 
+     */
+    switch(cin) {
+        case 0x0A:
+            if(last_char == 0x0D)
+                return;
+        case 0x0D:
+            if(last_char == 0x0A)
+                return;
+    }
     s = decode_key(cin, &c, &a);
     if(s != 0) { send_code(0x80, 7); }  // send shift key if necessary
     send_code(c, a);
@@ -163,6 +179,7 @@ void print_c(const char cin) {
         default:
             g_character_index++;
     }
+    last_char = cin;
 }
 
 // process ONE character from the ring buffer per call

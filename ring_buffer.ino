@@ -18,6 +18,7 @@ uint8_t rb_is_empty(void) {
 void rb_write(const unsigned char value) {
     g_ring_buff.buffer[g_ring_buff.write_idx] = value;
     g_ring_buff.write_idx++;
+    g_ring_buff.buffer[g_ring_buff.write_idx] = 0;
     g_ring_buff.empty = 0;
 }
 
@@ -27,7 +28,7 @@ uint8_t rb_read(void) {
     uint8_t temp = g_ring_buff.buffer[g_ring_buff.read_idx];
     g_ring_buff.read_idx++;
     if(g_ring_buff.read_idx == g_ring_buff.write_idx)
-        g_ring_buff.empty = 1;
+        rb_reset();
     return temp;
 }
 

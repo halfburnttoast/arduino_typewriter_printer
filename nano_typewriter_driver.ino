@@ -1,5 +1,5 @@
 #define SERIAL_ENABLE
-#define PAR_PORT_ENABLE
+#define PORT_ENABLE
 #include "keycodes.h"
 #include "ring_buffer.h"
 extern ring_buffer g_ring_buff;         // global ring buffer for printing
@@ -13,15 +13,13 @@ char serial_output_buffer[SERIAL_OUTPUT_BUFFER_SIZE];
 #endif
 
 // Control pins
-#define DATA     2
+#define DATA     A4
 #define SR_OE    A5
 #define RCLK     3
 #define SRCLK    4
 
 // Internal print-state variables
-#define PRINT_DELAY 5
 #define CHARS_PER_LINE  64              // maximum characters per line of paper
-uint8_t g_print_delay = PRINT_DELAY;
 uint8_t g_character_index = 0;          // used to track carriage position
 
 
@@ -85,7 +83,7 @@ uint8_t get_serial_input(void) {
         return 0;
     }
 }
-#endif
+#endif   // ifdef SERIAL_ENABLE
 
 // decodes charin and produces the control code and address
 // returns shift required true or false 
@@ -100,7 +98,7 @@ uint8_t decode_key(const char charin, uint8_t *code, uint8_t *addr) {
 void sr_shift_out(const uint8_t value) {
     for(uint8_t i; i < 8; i++) {
         uint8_t dout = ((value >> (7 - i)) & 0x1);
-        PORTD = ((PORTD & 0xFB) | (dout << 2));
+        PORTC = ((PORTC & 0xEF) | (dout << 4));
         PORTD = (PORTD | 0x10);
         PORTD = (PORTD & 0xEF);
     }
@@ -134,11 +132,11 @@ void send_code(const uint8_t code, const uint8_t addr) {
     for(uint8_t count = 0; count <= 2; count++) {
         sr_shift_out(outcode);          // prepare code for output, don't latch yet!
         while((PINC & 0x0F) != addr)    // wait for address to appear before latching
-            __asm__("nop");
+            _NOP();
         sr_latch();                     // code has appeared, latch output value
         sr_shift_out(0xFF);             // prepare for reset 
         while((PINC & 0x0F) == addr)    // wait for scancode to change
-            __asm__("nop");   
+            _NOP();   
         sr_latch();                     // reset output
     }
     sr_output_disable();            // go back to high-impedance
@@ -159,23 +157,16 @@ void print_c(const char cin) {
         case 0x0D:
         case 0x07:
         case 0x09:
-            g_print_delay = 0x50;       // long delay for large carriage movement
+            delay(2000);                // long delay for large carriage movement
             g_character_index = 0;
             break;
         default:
             g_character_index++;
-            g_print_delay = PRINT_DELAY;
     }
 }
 
-// process ONE character from the ring buffer per call, return if empty
-// This must reset the ISR delay before returning if buffer is empty
+// process ONE character from the ring buffer per call
 void handle_buffer(void) {
-    if(g_ring_buff.empty) {
-        g_print_delay = PRINT_DELAY;
-        return;
-    }
-
     // auto insert a newline if the carriage has reached the end of paper
     // and next character isn't a newline. 
     if(g_character_index < CHARS_PER_LINE) {
@@ -203,7 +194,7 @@ void setup() {
     sprint("Serial ready.\n\r");
 #endif
     pinMode(LED_BUILTIN, OUTPUT);
-    pinMode(12, INPUT_PULLUP);  // latching pin to prevent stray character pressses
+    //pinMode(12, INPUT_PULLUP);  // latching pin to prevent stray character pressses
     
     // setup shift register output
     pinMode(DATA, OUTPUT);
@@ -222,34 +213,25 @@ void setup() {
     // reset ring buffer
     rb_reset();
 
-    // setup interrupts for TIMER1
-    cli();
-    TCCR1A = 0;                 // clear timer1 control reg A
-    TCCR1B = 0;                 // clear timer1 control reg B
-    TCNT1 = 0;                  // clear timer1 count
-    TIMSK1 |= (1 << TOIE1);
-    TCCR1B |= 0x02;
-    sei();
+#ifdef PORT_ENABLE
+    // setup interrupt for INT0 (port 2 bonded to port 12 - latching pin)
+    EICRA |= 0x03;              // trigger on rising edge of INT0
+    EIMSK |= 0x01;              // mask enable
+#endif
 
     // reset carriage position
     rb_write('\n');
 }
 
-/* Timer1 is running but needs to be tuned a bit, thus the delay. This delay
- *  needs to be changeable by the print routines to compensate for LF/CR/TAB.
- *  Calling this ISR automatically resets the interrupt flag
- */
-ISR(TIMER1_OVF_vect) {
-    g_print_delay--;
-    if(g_print_delay == 0) {
-        PORTB = (PORTB | 0x20);
-        handle_buffer();
-        PORTB = (PORTB & 0xDF);     // toggle status LED
-    }
-
+#ifdef PORT_ENABLE
+ISR(INT0_vect) {
+    uint8_t bytein = ((PIND & 0xE0) >> 5);
+    bytein |= ((PINB & 0x1F) << 3);
+    rb_write((bytein & 0x7F));
 }
+#endif
 
-uint8_t triggered = 0;
+//uint8_t triggered = 0;
 void loop() {
 #ifdef SERIAL_ENABLE
     if(get_serial_input()) {
@@ -264,18 +246,12 @@ void loop() {
     }
 #endif
 
-#ifdef PAR_PORT_ENABLE
-    // Use bit 7 from the input byte (port 12) to latch the ascii value code 
-    if(triggered == 0 && (PINB & 0x10)) {
-        triggered = 1;
-        uint8_t bytein = ((PIND & 0xE0) >> 5);
-        bytein |= ((PINB & 0x1F) << 3);
-        rb_write((bytein & 0x7F));
-    } 
-    else if(triggered == 1 && !(PINB & 0x10)) {
-        triggered = 0;
+    if(rb_is_empty() == 0) {
+        PORTB = (PORTB | 0x20);
+        handle_buffer();
+        PORTB = (PORTB & 0xDF);     // toggle status LED
+        delay(100);
     }
-#endif
 }
 
 
